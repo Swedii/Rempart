@@ -5,13 +5,14 @@ namespace Rempart;
 
 /// <summary>Ce que voient l'application Rempart et le désinstalleur.</summary>
 internal sealed record VueDesinstallation(
-    string Mode, DateTimeOffset? DemandeLe, DateTimeOffset? DisponibleLe, string? Code, DateTimeOffset? ExpireLe);
+    string Mode, DateTimeOffset? DemandeLe, DateTimeOffset? DisponibleLe, string? Code, DateTimeOffset? ExpireLe,
+    double DelaiMinutes, double ValiditeMinutes);
 
 /// <summary>
-/// Désinstallation par code retardé (décision du projet : option 1, « pas trop sévère ») :
-/// la demande déclenche une attente fixe (24 h) ; ensuite le code s'affiche dans l'application et reste valable
-/// quelques jours. La demande s'annule à tout moment. Le code n'est créé qu'à la fin de l'attente : avant, il
-/// n'existe nulle part et ne peut pas être lu en avance.
+/// Désinstallation par code retardé (décisions du projet : option 1, « pas trop sévère », 3 h puis 15 min) :
+/// la demande déclenche une attente fixe ; ensuite le code s'affiche dans l'application et reste valable peu de
+/// temps (il faut être là et décidé ; sinon tout revient au départ). La demande s'annule à tout moment.
+/// Le code n'est créé qu'à la fin de l'attente : avant, il n'existe nulle part et ne peut pas être lu en avance.
 /// </summary>
 internal sealed class Desinstallation
 {
@@ -72,7 +73,8 @@ internal sealed class Desinstallation
     }
 
     private VueDesinstallation Construire() =>
-        new(_mode, _etat.DemandeLe, _etat.DemandeLe + _delai, _etat.Code, _etat.ExpireLe);
+        new(_mode, _etat.DemandeLe, _etat.DemandeLe + _delai, _etat.Code, _etat.ExpireLe,
+            _delai.TotalMinutes, _validite.TotalMinutes);
 
     private static string Normaliser(string? code) =>
         new((code ?? "").ToUpperInvariant().Where(char.IsLetterOrDigit).ToArray());

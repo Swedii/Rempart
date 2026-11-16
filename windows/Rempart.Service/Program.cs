@@ -104,7 +104,7 @@ internal sealed class FiltreDns(Reglages reglages, string? cheminListe, IHostApp
         log.LogInformation("Filtre DNS à l'écoute sur 127.0.0.1 et ::1, port {Port}.", reglages.Port);
 
         _desinstallation = new Desinstallation(Path.Combine(Reglages.DossierDonnees, "desinstallation.json"),
-            TimeSpan.FromHours(reglages.DelaiDesinstallationHeures), TimeSpan.FromDays(reglages.ValiditeCodeJours),
+            TimeSpan.FromHours(reglages.DelaiDesinstallationHeures), TimeSpan.FromMinutes(reglages.ValiditeCodeMinutes),
             modeTest ? "test" : "protection");
         _canal = new CanalCommande(TraiterCommande, log);
         _canal.Demarrer();

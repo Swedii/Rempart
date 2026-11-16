@@ -44,8 +44,8 @@ Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
 Name: "en"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
-fr.Avertissement=Rempart va protéger tout ce PC : sites pornographiques bloqués dans tous les navigateurs, navigation privée coupée, SafeSearch forcé.%n%nPour le désinstaller plus tard, il faudra demander un code dans l'application Rempart : il s'affiche au bout de 24 heures.%n%nContinuer ?
-en.Avertissement=Rempart will protect this whole PC: porn sites blocked in every browser, private browsing disabled, SafeSearch enforced.%n%nTo uninstall it later, you will need to request a code in the Rempart app: it appears after 24 hours.%n%nContinue?
+fr.Avertissement=Rempart va protéger tout ce PC : sites pornographiques bloqués dans tous les navigateurs, navigation privée coupée, SafeSearch forcé.%n%nPour le désinstaller plus tard, il faudra demander un code dans l'application Rempart : il s'affiche au bout de 3 heures et reste valable 15 minutes.%n%nContinuer ?
+en.Avertissement=Rempart will protect this whole PC: porn sites blocked in every browser, private browsing disabled, SafeSearch enforced.%n%nTo uninstall it later, you will need to request a code in the Rempart app: it appears after 3 hours and stays valid for 15 minutes.%n%nContinue?
 fr.CodeRefuse=Désinstallation annulée : le code n'a pas été validé.
 en.CodeRefuse=Uninstall cancelled: the code was not validated.
 fr.Ouvrir=Ouvrir Rempart
@@ -57,6 +57,9 @@ Source: "..\scripts\remise-a-zero.ps1"; DestDir: "{app}\scripts"; Flags: ignorev
 Source: "..\REMISE-A-ZERO.cmd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\data\blocklist.txt"; DestDir: "{commonappdata}\Rempart"; Flags: ignoreversion
 Source: "{#Config}\reglages.json"; DestDir: "{commonappdata}\Rempart"; Flags: ignoreversion
+
+[UninstallDelete]
+Type: dirifempty; Name: "{app}"
 
 [Icons]
 Name: "{autoprograms}\Rempart"; Filename: "{app}\Rempart.exe"
@@ -74,7 +77,8 @@ Filename: "{app}\Rempart.exe"; Description: "{cm:Ouvrir}"; Flags: postinstall no
 procedure Executer(const Fichier, Parametres: String);
 var Code: Integer;
 begin
-  Exec(Fichier, Parametres, '', SW_HIDE, ewWaitUntilTerminated, Code);
+  // Dossier de travail hors du dossier d'installation, sinon il reste verrouillé et ne peut pas être supprimé.
+  Exec(Fichier, Parametres, ExpandConstant('{sys}'), SW_HIDE, ewWaitUntilTerminated, Code);
 end;
 
 { Retire le service existant (réinstallation ou mise à jour) : en protection il refuse l'arrêt, on le coupe. }

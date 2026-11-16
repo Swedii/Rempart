@@ -94,31 +94,42 @@ internal sealed class FenetrePrincipale : Form
         var maintenant = DateTimeOffset.Now;
         if (e.DemandeLe is null)
         {
+            var delai = T.DureeRonde(e.DelaiMinutes);
+            var validite = T.DureeRonde(e.ValiditeMinutes);
             _explication.Text = T.S(
-                "Pour désinstaller Rempart, demandez un code. Il s'affichera ici au bout de 24 heures. " +
-                "Vous pourrez annuler la demande à tout moment.",
-                "To uninstall Rempart, request a code. It will appear here after 24 hours. " +
-                "You can cancel the request at any time.");
+                $"Pour désinstaller Rempart, demandez un code. Il s'affichera ici au bout de {delai} et restera " +
+                $"valable {validite}. Vous pourrez annuler la demande à tout moment.",
+                $"To uninstall Rempart, request a code. It will appear here after {delai} and stay valid for " +
+                $"{validite}. You can cancel the request at any time.");
             _demander.Visible = true;
         }
         else if (e.Code is null)
         {
-            var reste = (e.DisponibleLe ?? maintenant) - maintenant;
+            var dispo = e.DisponibleLe!.Value;
+            var reste = dispo - maintenant;
+            var quand = dispo.LocalDateTime.Date == DateTime.Today
+                ? T.S($"à {T.Heure(dispo)}", $"at {T.Heure(dispo)}")
+                : T.S($"le {T.Date(dispo)}", $"on {T.Date(dispo)}");
             _explication.Text = T.S(
-                $"Demande enregistrée. Le code s'affichera ici le {T.Date(e.DisponibleLe!.Value)} (dans {T.Duree(reste)}).",
-                $"Request recorded. The code will appear here on {T.Date(e.DisponibleLe!.Value)} (in {T.Duree(reste)}).");
-            _detail.Text = T.S("Rien ne vous oblige à aller au bout : annulez si l'envie est passée.",
-                               "Nothing forces you to go through with it: cancel if the urge has passed.");
+                $"Demande enregistrée. Le code s'affichera ici {quand} (dans {T.Duree(reste)}).",
+                $"Request recorded. The code will appear here {quand} (in {T.Duree(reste)}).");
+            _detail.Text = T.S(
+                $"Il restera valable {T.DureeRonde(e.ValiditeMinutes)} seulement. Rien ne vous oblige à aller au bout : " +
+                "annulez si l'envie est passée.",
+                $"It will only stay valid for {T.DureeRonde(e.ValiditeMinutes)}. Nothing forces you to go through with it: " +
+                "cancel if the urge has passed.");
             _detail.Visible = _annuler.Visible = true;
         }
         else
         {
+            var expire = e.ExpireLe!.Value;
             _explication.Text = T.S("Votre code de désinstallation :", "Your uninstall code:");
             _code.Text = e.Code;
             _detail.Text = T.S(
-                $"Valable jusqu'au {T.Date(e.ExpireLe!.Value)}. Désinstallez Rempart depuis Paramètres > Applications : " +
-                "le code vous sera demandé.",
-                $"Valid until {T.Date(e.ExpireLe!.Value)}. Uninstall Rempart from Settings > Apps: you will be asked for the code.");
+                $"Valable encore {T.Duree(expire - maintenant)} (jusqu'à {T.Heure(expire)}). Désinstallez Rempart depuis " +
+                "Paramètres > Applications : le code vous sera demandé.",
+                $"Valid for {T.Duree(expire - maintenant)} more (until {T.Heure(expire)}). Uninstall Rempart from " +
+                "Settings > Apps: you will be asked for the code.");
             _code.Visible = _detail.Visible = _copier.Visible = _annuler.Visible = true;
         }
         ResumeLayout();
@@ -136,11 +147,11 @@ internal sealed class FenetreCode : Form
         var etat = Service.Lire();
         if (etat is null) return 0;                      // service absent ou arrêté : rien à protéger
         if (etat.Mode == "test") return Service.Desinstaller("")?.Ok == true ? 0 : 1;
-        using var f = new FenetreCode();
+        using var f = new FenetreCode(etat);
         return f.ShowDialog() == DialogResult.OK ? 0 : 1;
     }
 
-    private FenetreCode()
+    private FenetreCode(Etat etat)
     {
         Text = T.S("Désinstaller Rempart", "Uninstall Rempart");
         Font = Style.Texte;
@@ -155,8 +166,9 @@ internal sealed class FenetreCode : Form
         var texte = Style.Etiquette();
         texte.Text = T.S(
             "Entrez le code de désinstallation. Pour l'obtenir : ouvrez l'application Rempart, demandez la " +
-            "désinstallation, puis revenez 24 heures plus tard.",
-            "Enter the uninstall code. To get it: open the Rempart app, request uninstall, then come back 24 hours later.");
+            $"désinstallation, puis revenez {T.DureeRonde(etat.DelaiMinutes)} plus tard.",
+            "Enter the uninstall code. To get it: open the Rempart app, request uninstall, then come back " +
+            $"{T.DureeRonde(etat.DelaiMinutes)} later.");
         var ok = Style.Bouton(T.S("Désinstaller", "Uninstall"));
         var annuler = Style.Bouton(T.S("Annuler", "Cancel"));
         annuler.DialogResult = DialogResult.Cancel;

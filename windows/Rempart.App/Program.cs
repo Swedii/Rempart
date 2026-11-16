@@ -20,7 +20,8 @@ internal static class Program
 }
 
 /// <summary>État renvoyé par le service (voir Rempart.Service/Desinstallation.cs).</summary>
-internal sealed record Etat(string Mode, DateTimeOffset? DemandeLe, DateTimeOffset? DisponibleLe, string? Code, DateTimeOffset? ExpireLe);
+internal sealed record Etat(string Mode, DateTimeOffset? DemandeLe, DateTimeOffset? DisponibleLe, string? Code,
+    DateTimeOffset? ExpireLe, double DelaiMinutes, double ValiditeMinutes);
 internal sealed record Resultat(bool Ok, string? Erreur);
 
 /// <summary>Dialogue avec le service par le tube nommé « Rempart ».</summary>
@@ -59,6 +60,18 @@ internal static class T
     public static string Duree(TimeSpan d) => d.TotalHours >= 1
         ? S($"{(int)d.TotalHours} h {d.Minutes:00} min", $"{(int)d.TotalHours} h {d.Minutes:00} min")
         : S($"{Math.Max(1, (int)Math.Ceiling(d.TotalMinutes))} min", $"{Math.Max(1, (int)Math.Ceiling(d.TotalMinutes))} min");
+
+    /// <summary>« 3 heures », « 15 minutes », « 1 h 30 ».</summary>
+    public static string DureeRonde(double minutes)
+    {
+        var d = TimeSpan.FromMinutes(minutes);
+        int m = Math.Max(1, (int)Math.Round(d.TotalMinutes));
+        if (d.TotalMinutes < 60) return m == 1 ? "1 minute" : $"{m} minutes";
+        if (d.Minutes == 0) return d.TotalHours < 2 ? S("1 heure", "1 hour") : S($"{(int)d.TotalHours} heures", $"{(int)d.TotalHours} hours");
+        return $"{(int)d.TotalHours} h {d.Minutes:00}";
+    }
+
+    public static string Heure(DateTimeOffset d) => d.LocalDateTime.ToString(S("HH:mm", "h:mm tt"));
 
     public static string Date(DateTimeOffset d) => d.LocalDateTime.ToString(S("dddd d MMMM 'à' HH:mm", "dddd, MMMM d 'at' h:mm tt"));
 }
