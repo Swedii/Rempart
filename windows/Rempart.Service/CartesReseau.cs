@@ -104,6 +104,27 @@ internal sealed class CartesReseau(string fichierSauvegarde, ILogger log)
         Process.Start(new ProcessStartInfo("ipconfig", "/flushdns") { CreateNoWindow = true, UseShellExecute = false })?.WaitForExit(5000);
     }
 
+    /// <summary>
+    /// Surveillance : vrai si une carte active ne pointe plus vers le filtre (DNS changé à la main, nouvelle carte
+    /// Wi-Fi…). En protection, le filtre doit être le SEUL serveur ; en test, la box reste en secours.
+    /// </summary>
+    public bool DoitEtreRedirige(bool modeTest)
+    {
+        foreach (var carte in CartesActives())
+        {
+            var v4 = LireServeurs(carte.Id, "NameServer");
+            if (v4.Length == 0 || v4[0] != "127.0.0.1" || (!modeTest && v4.Length > 1)) return true;
+            if (carte.Supports(NetworkInterfaceComponent.IPv6))
+            {
+                using var cle6 = Registry.LocalMachine.OpenSubKey(
+                    $@"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\Interfaces\{carte.Id}");
+                var v6 = (cle6?.GetValue("NameServer") as string ?? "").Split([',', ' '], StringSplitOptions.RemoveEmptyEntries);
+                if (v6 is not ["::1"]) return true;
+            }
+        }
+        return false;
+    }
+
     /// <summary>Remet chaque carte sauvegardée comme avant, puis efface la sauvegarde.</summary>
     public void Restaurer()
     {

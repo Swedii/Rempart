@@ -178,6 +178,22 @@ public class FiltreDnsTests
             Assert.False(liste.EstBloque(legitime), legitime);
     }
 
+    // ---- Remise à zéro ----------------------------------------------------------------------------------------
+    [Fact]
+    public void LaRemiseAZeroConnaitChaqueReglagePose()
+    {
+        var script = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+            "..", "..", "..", "..", "scripts", "remise-a-zero.ps1")));
+        var sousCles = System.Text.RegularExpressions.Regex.Match(script, @"\$SousClesNavigateurs = @\((.*?)\)",
+            System.Text.RegularExpressions.RegexOptions.Singleline).Groups[1].Value;
+        foreach (var r in Navigateurs.Liste)
+        {
+            bool sousCleRetiree = sousCles.Contains($"'HKLM:\\{r.Cle}'");
+            Assert.True(sousCleRetiree || (script.Contains($"'HKLM:\\{r.Cle}'") && script.Contains($"'{r.Nom}'")),
+                $"remise-a-zero.ps1 ne retire pas {r.Cle}\\{r.Nom}");
+        }
+    }
+
     // ---- Serveur complet --------------------------------------------------------------------------------------
     private static ServeurDns.Decision Decider(string nom) => nom switch
     {

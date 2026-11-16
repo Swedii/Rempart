@@ -27,10 +27,10 @@ $IdsExtension   = @()
 
 $ReglagesNavigateurs = @{
     'HKLM:\SOFTWARE\Policies\Google\Chrome' = @(
-        'IncognitoModeAvailability', 'BrowserGuestModeEnabled', 'BrowserAddPersonEnabled',
-        'DnsOverHttpsMode', 'ForceGoogleSafeSearch', 'ForceYouTubeRestrict', 'SafeSitesFilterBehavior')
+        'IncognitoModeAvailability', 'BrowserGuestModeEnabled',
+        'DnsOverHttpsMode', 'ForceGoogleSafeSearch', 'ForceYouTubeRestrict')
     'HKLM:\SOFTWARE\Policies\Microsoft\Edge' = @(
-        'InPrivateModeAvailability', 'BrowserGuestModeEnabled', 'BrowserAddProfileEnabled',
+        'InPrivateModeAvailability', 'BrowserGuestModeEnabled',
         'DnsOverHttpsMode', 'ForceGoogleSafeSearch', 'ForceBingSafeSearch', 'ForceYouTubeRestrict')
     'HKLM:\SOFTWARE\Policies\Mozilla\Firefox' = @(
         'DisablePrivateBrowsing')

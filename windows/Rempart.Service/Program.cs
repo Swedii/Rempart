@@ -69,14 +69,57 @@ internal sealed class FiltreDns(Reglages reglages, string? cheminListe, ILogger<
         log.LogInformation("Filtre DNS à l'écoute sur 127.0.0.1 et ::1, port {Port}.", reglages.Port);
 
         // Les cartes ne sont redirigées qu'une fois le filtre prêt (sinon plus d'Internet).
-        if (reglages.RedirigerCartes && reglages.Port == 53) _cartes.Rediriger(modeTest);
+        if (Reel)
+        {
+            _cartes.Rediriger(modeTest);
+            _navigateurs = new Navigateurs(log);
+            _navigateurs.Appliquer();
+            log.LogInformation("Réglages des navigateurs posés ({Nombre}).", Navigateurs.Liste.Length);
+            _surveillance = Task.Run(() => Surveiller(_arret.Token));
+        }
         await Task.CompletedTask;
+    }
+
+    /// <summary>Essai dans une fenêtre sur un autre port ou sans les cartes : on ne touche à rien sur le PC.</summary>
+    private bool Reel => reglages.RedirigerCartes && reglages.Port == 53;
+
+    private Navigateurs? _navigateurs;
+    private Task? _surveillance;
+    private readonly CancellationTokenSource _arret = new();
+
+    /// <summary>Toutes les 15 s : remet en place le DNS des cartes et les réglages des navigateurs s'ils ont changé.</summary>
+    private async Task Surveiller(CancellationToken jeton)
+    {
+        using var minuterie = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        try
+        {
+            while (await minuterie.WaitForNextTickAsync(jeton))
+            {
+                try
+                {
+                    if (_cartes!.DoitEtreRedirige(reglages.ModeTest))
+                    {
+                        log.LogWarning("DNS d'une carte réseau modifié : filtre remis en place.");
+                        _cartes.Rediriger(reglages.ModeTest);
+                    }
+                    _navigateurs!.Appliquer();
+                }
+                catch (Exception e) { log.LogError(e, "Surveillance : erreur"); }
+            }
+        }
+        catch (OperationCanceledException) { }
     }
 
     public async Task StopAsync(CancellationToken jeton)
     {
-        // En mode test, arrêter le service rend Internet comme avant. En protection, le DNS reste sur le filtre.
-        if (reglages.ModeTest && reglages.RedirigerCartes && reglages.Port == 53) _cartes?.Restaurer();
+        _arret.Cancel();
+        if (_surveillance is not null) await _surveillance;
+        // En mode test, arrêter le service rend le PC comme avant. En protection, tout reste en place.
+        if (reglages.ModeTest && Reel)
+        {
+            _cartes?.Restaurer();
+            _navigateurs?.Retirer();
+        }
         if (_serveur is not null) await _serveur.DisposeAsync();
         log.LogInformation("Filtre DNS arrêté.");
     }
