@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="optionsTitle">Rempart</title>
+  <link rel="icon" href="../icons/32.png">
+  <link rel="stylesheet" href="common.css">
+  <style>
+    .field { margin-bottom: 20px; }
+    .field input[type="number"] { max-width: 140px; }
+    .saved { color: var(--accent); min-height: 1.4em; margin-top: 8px; }
+    .error { color: var(--warn); }
+    .journal-entry { border-top: 1px solid var(--line); padding: 12px 0; }
+    .journal-entry:first-child { border-top: 0; }
+    .journal-entry ul { margin: 6px 0 0; padding-left: 1.2em; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+    .stat strong { display: block; font-size: 1.6rem; color: var(--accent); }
+    .allowed-row { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      border-top: 1px solid var(--line); padding: 10px 0; flex-wrap: wrap; }
+    .allowed-row:first-child { border-top: 0; }
+    .allowed-row button { padding: 6px 14px; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand"><img src="../icons/48.png" alt=""><span>Rempart</span></div>
+  <h1 data-i18n="optionsHeading"></h1>
+
+  <div class="card stats">
+    <div class="stat"><strong id="days">0</strong><span class="muted small" data-i18n="daysClean"></span></div>
+    <div class="stat"><strong id="wait">-</strong><span class="muted small" data-i18n="currentWait"></span></div>
+    <div class="stat"><strong id="count">-</strong><span class="muted small" data-i18n="sitesBlocked"></span></div>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="settingsTitle"></h2>
+    <p class="muted small" data-i18n="settingsStrictOnly"></p>
+    <div class="field">
+      <label for="baseWaitMin" data-i18n="baseWaitLabel"></label>
+      <input type="number" id="baseWaitMin" min="30" max="1440" step="5">
+    </div>
+    <div class="field">
+      <label for="accessMin" data-i18n="accessLabel"></label>
+      <input type="number" id="accessMin" min="1" max="10" step="1">
+    </div>
+    <div class="field">
+      <label for="selfMessage" data-i18n="selfMessageLabel"></label>
+      <p class="muted small" data-i18n="selfMessageHelp"></p>
+      <textarea id="selfMessage" rows="6"></textarea>
+      <div class="small muted" id="selfCount"></div>
+    </div>
+    <button id="save" data-i18n="save"></button>
+    <div class="saved small" id="saved"></div>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="allowedTitle"></h2>
+    <p class="muted small" data-i18n="allowedHelp"></p>
+    <div id="allowed"></div>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="journalTitle"></h2>
+    <p class="muted small" data-i18n="journalHelp"></p>
+    <div id="journal"></div>
+  </div>
+
+  <p class="muted small" data-i18n="privacyNote"></p>
+</main>
+<script src="i18n.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

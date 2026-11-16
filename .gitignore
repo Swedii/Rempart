@@ -1,0 +1,8 @@
+node_modules/
+tools/cache/
+# Fichiers générés par « npm run build:blocklist » (20 Mo et plus)
+extension/rules/blocklist.json
+extension/rules/meta.json
+data/
+# Généré par Chrome au chargement de l'extension
+extension/_metadata/

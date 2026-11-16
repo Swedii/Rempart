@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="blockedTitle">Rempart</title>
+  <link rel="icon" href="../icons/32.png">
+  <link rel="stylesheet" href="common.css">
+  <link rel="stylesheet" href="blocked.css">
+</head>
+<body>
+<main>
+  <div class="brand"><img src="../icons/48.png" alt=""><span>Rempart</span></div>
+
+  <!-- Écran 1 : site bloqué -->
+  <section id="screen-blocked">
+    <h1 data-i18n="blockedHeading"></h1>
+    <p class="muted"><span data-i18n="blockedSite"></span> <strong id="domain"></strong></p>
+
+    <div class="card streak">
+      <div class="streak-number" id="days">0</div>
+      <div>
+        <div class="streak-label" id="days-label"></div>
+        <div class="muted small" id="since"></div>
+      </div>
+    </div>
+
+    <div class="card quote hidden" id="last-words">
+      <div class="muted small" data-i18n="lastTimeYouWrote"></div>
+      <blockquote id="last-answer"></blockquote>
+    </div>
+
+    <div class="row">
+      <button id="close-tab" data-i18n="closeTab"></button>
+      <button class="secondary" id="go-back" data-i18n="goBack"></button>
+    </div>
+
+    <p class="want-access"><button class="link" id="want-access" data-i18n="wantAccess"></button></p>
+    <p class="small"><button class="link" id="fp-link" data-i18n="fpLink"></button></p>
+
+    <div class="card hidden" id="fp-panel">
+      <h2 data-i18n="fpTitle"></h2>
+      <p data-i18n="fpText"></p>
+      <div class="row">
+        <button class="secondary hidden" id="fp-report" data-i18n="fpReport"></button>
+        <button class="secondary" id="fp-allow" data-i18n="fpAllow"></button>
+      </div>
+      <p class="small muted" id="fp-status"></p>
+    </div>
+
+    <div class="card warn hidden" id="confirm-start">
+      <h2 data-i18n="beforeYouStart"></h2>
+      <p id="start-explain"></p>
+      <ul class="steps-preview">
+        <li data-i18n="previewStep1"></li>
+        <li data-i18n="previewStep2"></li>
+        <li data-i18n="previewStep3"></li>
+        <li data-i18n="previewStep4"></li>
+      </ul>
+      <p class="small" data-i18n="keepTabOpen"></p>
+      <div class="row">
+        <button class="secondary" id="start" data-i18n="startParcours"></button>
+        <button id="cancel-start" data-i18n="changedMyMind"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Écran 2 : parcours -->
+  <section id="screen-parcours" class="hidden">
+    <div class="timer card">
+      <div class="row timer-row">
+        <span data-i18n="timeLeft"></span>
+        <strong id="timer">--:--</strong>
+      </div>
+      <div class="bar"><div id="bar-fill"></div></div>
+      <p class="small muted" data-i18n="keepTabOpen"></p>
+    </div>
+
+    <div class="card" id="step-questions">
+      <h2 data-i18n="step1Title"></h2>
+      <p class="muted small" data-i18n="step1Help"></p>
+      <div id="questions"></div>
+    </div>
+
+    <div class="card" id="step-copy">
+      <h2 data-i18n="step2Title"></h2>
+      <p class="muted small" data-i18n="step2Help"></p>
+      <div class="copy-source" id="copy-source"></div>
+      <textarea id="copy-input" autocomplete="off" spellcheck="false" autocapitalize="off"></textarea>
+      <div class="small muted" id="copy-status"></div>
+    </div>
+
+    <div class="card" id="step-captcha">
+      <h2 data-i18n="step3Title"></h2>
+      <p class="muted small" id="captcha-help"></p>
+      <div id="captcha-zone" class="hidden">
+        <div class="captcha-progress" id="captcha-progress"></div>
+        <canvas id="captcha" width="320" height="96"></canvas>
+        <div class="row">
+          <input type="text" id="captcha-input" autocomplete="off" spellcheck="false" maxlength="8">
+          <button id="captcha-ok" data-i18n="validate"></button>
+        </div>
+        <div class="small error" id="captcha-error"></div>
+      </div>
+    </div>
+
+    <div class="card warn hidden" id="step-final">
+      <h2 data-i18n="finalTitle"></h2>
+      <p id="final-explain"></p>
+      <div class="row">
+        <button id="final-leave" data-i18n="finalLeave"></button>
+        <button class="secondary" id="final-access" data-i18n="finalAccess"></button>
+      </div>
+      <div class="small error" id="final-error"></div>
+    </div>
+
+    <p><button class="link" id="abandon" data-i18n="abandon"></button></p>
+  </section>
+
+  <!-- Écran 3 : abandon -->
+  <section id="screen-proud" class="hidden">
+    <h1 data-i18n="proudHeading"></h1>
+    <p data-i18n="proudText"></p>
+    <button id="proud-close" data-i18n="closeTab"></button>
+  </section>
+</main>
+<script src="i18n.js"></script>
+<script src="captcha.js"></script>
+<script src="blocked.js"></script>
+</body>
+</html>

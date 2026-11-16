@@ -1,0 +1,7 @@
+/* Rempart — Reddit */
+html.rempart-checking body,
+html.rempart-hide body { visibility: hidden !important; }
+
+.rempart-hidden-post,
+shreddit-post[nsfw]:not([nsfw="false"]),
+.thing.over18 { display: none !important; }
