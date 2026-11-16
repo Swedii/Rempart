@@ -6,7 +6,7 @@ const show = (el, on = true) => el.classList.toggle("hidden", !on);
 
 // Adresse de création d'un signalement public (ex. « https://github.com/<compte>/rempart/issues/new »).
 // Vide tant que le dépôt public n'existe pas : le bouton « Signaler » reste alors masqué.
-const REPORT_ISSUE_URL = "";
+const REPORT_ISSUE_URL = "https://github.com/Swedii/rempart/issues/new";
 
 const QUESTION_KEYS =["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8"];
 const MIN_ANSWER = 50;
