@@ -1,5 +1,5 @@
 ﻿# Rempart - construit l'installateur Windows.
-#   .\construire.ps1                      -> vraie version (protection, liste complète, 24 h)
+#   .\construire.ps1                      -> vraie version (protection, liste complète, code au bout de 3 h)
 #   .\construire.ps1 -Variante repetition -> répétition générale : protection, 3 domaines de test,
 #                                            code au bout de 3 min, remise à zéro au bout de 2 min
 #   .\construire.ps1 -Variante test       -> mode test (rien de réel bloqué, arrêt = tout retiré)

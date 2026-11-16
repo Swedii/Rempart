@@ -80,6 +80,9 @@ $("fp-report").onclick = () => {
     "",
   ].join("\n");
   const url = new URL(REPORT_ISSUE_URL);
+  // Le modèle .github/ISSUE_TEMPLATE/faux-positif.md pose l'étiquette pour tout le monde
+  // (le paramètre « labels » seul n'est appliqué que pour les membres du dépôt).
+  url.searchParams.set("template", "faux-positif.md");
   url.searchParams.set("title", `Faux positif : ${domain}`);
   url.searchParams.set("labels", "faux-positif");
   url.searchParams.set("body", body);

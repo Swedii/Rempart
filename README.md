@@ -23,6 +23,23 @@ pour protéger de l'exposition permanente à ce contenu et aider à résister à
 - **Réglages modifiables uniquement dans le sens le plus strict.**
 - **Aucune donnée collectée** : pas de compte, pas de statistiques, rien n'est envoyé sur Internet.
 
+## Ce que fait Rempart pour Windows
+
+Un installateur (`Rempart-0.1.0-installation.exe`) met en place un service Windows et l'application `Rempart.exe`.
+
+- **Filtre DNS local sur tout le PC** : les mêmes ≈ 490 000 sites sont bloqués dans tous les navigateurs et toutes
+  les applications. Les autres requêtes partent vers le DNS d'origine du PC (celui de la box ou du réseau),
+  sans passer par un serveur de Rempart.
+- **Réglages imposés à Chrome, Edge et Firefox** : navigation privée et mode invité désactivés, DNS chiffré du
+  navigateur coupé (il contournerait le filtre), SafeSearch forcé sur Google et Bing, YouTube en mode restreint modéré.
+- **Surveillance toutes les 15 secondes** : si un réglage ou le DNS d'une carte réseau est modifié, il est remis en place.
+- **Mode protection** : le service refuse l'arrêt, redémarre tout seul s'il est tué et se relance au démarrage du PC.
+- **Désinstallation par code retardé** : on demande le code dans l'application Rempart ; il s'affiche **au bout de
+  3 heures** et reste **valable 15 minutes**. La demande est annulable. Le code ne sort jamais du PC.
+- **Remise à zéro de secours** (`REMISE-A-ZERO.cmd`, dans le dossier d'installation) : si quelque chose se passe mal,
+  elle enlève toutes les protections et remet Internet comme avant, après **1 heure d'attente** fenêtre ouverte.
+- Si le service tombe en panne, Internet reste accessible (jamais de PC coupé du réseau).
+
 ## Faux positifs : priorité absolue
 
 **Dans le doute, le site reste accessible** : on ne peut pas être parfait partout, mais on ne bloque que ce qui est sûr.
@@ -44,13 +61,15 @@ plateformes de blogs ne sont pas bloqués.
 
 ## Feuille de route
 
-1. Extension navigateur — *en cours (v0.1)*
-2. Service Windows : filtre DNS sur toute la machine, extension installée de force, navigation privée et DNS chiffré
-   désactivés, surveillance anti-contournement, désinstallation par code retardé de 24 h
+1. Extension navigateur — *v0.1 ; publication sur le Chrome Web Store puis Firefox Add-ons à venir*
+2. Service Windows — *v0.1* ; à venir : extension installée de force dans Chrome et Edge (dès sa publication sur le
+   Chrome Web Store), installateur signé
 3. Appli Android (VPN local de filtrage)
 4. Guide iPhone (Temps d'écran + profil DNS) et mode « tiers de confiance »
 
 ## Développement
+
+### Extension
 
 Prérequis : Node.js 20+.
 
@@ -63,10 +82,27 @@ npm test                    # test de bout en bout dans un Chrome headless, rés
 
 Charger l'extension : `chrome://extensions` → mode développeur → « Charger l'extension non empaquetée » → dossier `extension/`.
 
+### Service et installateur Windows
+
+Prérequis : Windows 10/11 x64, [SDK .NET 10](https://dotnet.microsoft.com), [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+(`winget install JRSoftware.InnoSetup --scope user`), et la liste générée par `npm run build:blocklist` (`data/blocklist.txt`).
+
+```powershell
+dotnet test windows\Rempart.slnx                       # tests du filtre DNS et du code de désinstallation
+.\windows\installateur\construire.ps1                  # vraie version  -> windows\sortie\Rempart-0.1.0-installation.exe
+.\windows\installateur\construire.ps1 -Variante repetition   # protection, 3 domaines de test, délais de quelques minutes
+.\windows\installateur\construire.ps1 -Variante test         # mode test : rien de réel bloqué, l'arrêt du service retire tout
+```
+
+Avant d'essayer sur son propre PC : `windows\scripts\point-de-restauration.ps1` crée un point de restauration
+Windows, et `windows\REMISE-A-ZERO.cmd` remet tout comme avant (immédiat en mode test).
+
 ### Limites connues (v0.1)
 
-- Tant que le service Windows (étape 2) n'existe pas, l'extension peut être désactivée depuis `chrome://extensions`
-  et ne fonctionne pas en navigation privée.
+- Sans le service Windows, l'extension peut être désactivée depuis `chrome://extensions` et ne fonctionne pas en
+  navigation privée. Le service n'installe pas encore l'extension de force (il faut qu'elle soit publiée sur le
+  Chrome Web Store).
+- L'installateur n'est pas encore signé : Windows SmartScreen et certains antivirus peuvent avertir.
 - SafeSearch non forcé sur Ecosia, Qwant et Startpage (paramètres à vérifier) ; Instagram, Bluesky, Discord et
   Telegram ne sont pas encore filtrés.
 - Les filtres Reddit et X s'appuient sur la structure actuelle de ces sites et devront suivre leurs changements.
@@ -89,4 +125,15 @@ forces SafeSearch (Google, Bing, DuckDuckGo, Yahoo, Yandex, Brave) and YouTube M
 results, and filters adult content on Reddit and X instead of blocking those platforms. Anyone who really wants through
 must complete a deliberately slow unlock process (30-minute wait, written reflection, hand-typed text, 5 captchas in a
 row) for 10 minutes of access to that one site; each unlock doubles the next wait and resets the streak counter.
-No data is collected. Windows service, Android app and iPhone guide are on the roadmap. Licensed GPL-3.0-or-later.
+No data is collected.
+
+**Windows**: an installer sets up a service and the `Rempart.exe` app. A local DNS filter blocks the same sites
+system-wide (other queries go to the PC's original DNS, never to a Rempart server); Chrome, Edge and Firefox policies
+disable private/guest browsing and browser DNS-over-HTTPS and enforce SafeSearch and YouTube Restricted Mode; settings
+are checked and restored every 15 seconds. In protection mode the service refuses to stop, restarts if killed and
+starts with Windows. Uninstalling requires a code requested in the app: it appears after 3 hours and stays valid for
+15 minutes. An emergency reset script removes everything after a 1-hour wait.
+
+**False positives are the top priority**: when in doubt, the site stays accessible. Rempart blocks pornography only
+(plus sex shops and gore), not dating, gambling, mainstream manga or torrents. Report a wrongly blocked site with the
+“False positive” issue form. Android app and iPhone guide are on the roadmap. Licensed GPL-3.0-or-later.
