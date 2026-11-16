@@ -63,16 +63,40 @@ function Supprimer-CleSiVide($cle) {
 Start-Transcript -Path (Join-Path $env:TEMP 'rempart-remise-a-zero.log') -Force | Out-Null
 Write-Host 'Rempart - remise a zero' -ForegroundColor Yellow
 
+# 0. En mode protection : 1 h d'attente fenetre ouverte (decision du projet : secours possible sans code,
+#    mais pas un contournement immediat). En mode test : immediat.
+$fichierReglages = Join-Path $DossierDonnees 'reglages.json'
+$reglages = $null
+if (Test-Path $fichierReglages) { try { $reglages = Get-Content $fichierReglages -Raw | ConvertFrom-Json } catch { } }
+if ((Get-Service -Name $NomService -ErrorAction SilentlyContinue) -and $reglages -and $reglages.Mode -eq 'protection') {
+    $minutes = 60
+    if ($reglages.AttenteRemiseAZeroMinutes) { $minutes = [double]$reglages.AttenteRemiseAZeroMinutes }
+    Write-Host ''
+    Write-Host "Rempart protege ce PC. La remise a zero se fera dans $minutes minute(s)." -ForegroundColor Yellow
+    Write-Host 'Laissez cette fenetre ouverte. Pour annuler, fermez-la simplement.'
+    Write-Host '(Pour une vraie panne d''Internet : le point de restauration Windows reste possible.)'
+    $fin = (Get-Date).AddMinutes($minutes)
+    while ((Get-Date) -lt $fin) {
+        $reste = $fin - (Get-Date)
+        Write-Progress -Activity 'Remise a zero de Rempart' -Status ("Encore {0:hh\:mm\:ss}" -f $reste) `
+            -PercentComplete ([math]::Min(100, 100 * (1 - $reste.TotalMinutes / $minutes)))
+        Start-Sleep -Seconds 5
+    }
+    Write-Progress -Activity 'Remise a zero de Rempart' -Completed
+}
+
 # 1. Arreter et retirer le service (en premier : sinon la surveillance remettrait tout en place)
 Etape 'Service Rempart'
 $service = Get-Service -Name $NomService -ErrorAction SilentlyContinue
 if ($service) {
     cmd.exe /c "sc.exe failure $NomService reset= 0 actions= `"`"" | Out-Null   # plus de redemarrage automatique
     sc.exe config $NomService start= disabled | Out-Null
-    Stop-Service -Name $NomService -Force -ErrorAction SilentlyContinue
+    Stop-Service -Name $NomService -Force -ErrorAction SilentlyContinue   # refuse en protection : on tue le processus
+    foreach ($p in $Processus) { Get-Process -Name $p -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue }
     sc.exe delete $NomService | Out-Null
     Ok 'service arrete et supprime'
 } else { Info 'aucun service installe' }
+Start-Sleep -Seconds 1
 foreach ($p in $Processus) {
     Get-Process -Name $p -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 }

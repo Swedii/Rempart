@@ -12,3 +12,6 @@ windows/sauvegarde/
 windows/**/bin/
 windows/**/obj/
 windows/publie/
+# Installateur
+windows/publie-installateur/
+windows/sortie/

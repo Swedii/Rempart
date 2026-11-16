@@ -25,6 +25,23 @@ internal sealed class Reglages
 
     public bool ModeTest => !string.Equals(Mode, "protection", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// « test » (seulement <see cref="DomainesTest"/>) ou « complete ». Vide : test en mode test, complète en protection.
+    /// Protection + liste de test = répétition générale sans rien bloquer de réel.
+    /// </summary>
+    public string? Liste { get; set; }
+
+    public bool ListeTest => Liste is null ? ModeTest : Liste.Equals("test", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Attente entre la demande de désinstallation et l'affichage du code.</summary>
+    public double DelaiDesinstallationHeures { get; set; } = 24;
+
+    /// <summary>Attente de la remise à zéro de secours en protection (lue par remise-a-zero.ps1).</summary>
+    public double AttenteRemiseAZeroMinutes { get; set; } = 60;
+
+    /// <summary>Durée pendant laquelle le code affiché reste valable.</summary>
+    public double ValiditeCodeJours { get; set; } = 7;
+
     public static Reglages Charger(string? chemin = null)
     {
         chemin ??= Path.Combine(DossierDonnees, "reglages.json");
