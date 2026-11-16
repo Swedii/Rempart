@@ -17,3 +17,5 @@ windows/publie-installateur/
 windows/sortie/
 # Notes personnelles (jamais publiées)
 prive/
+# Paquets pour les boutiques (npm run package:chrome)
+sortie/

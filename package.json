@@ -10,7 +10,9 @@
     "build:icons": "node tools/make-icons.mjs",
     "test": "node tests/false-positives.test.mjs && node tests/extension.test.mjs",
     "test:fp": "node tests/false-positives.test.mjs",
-    "audit": "node tools/audit-false-positives.mjs 100000"
+    "audit": "node tools/audit-false-positives.mjs 100000",
+    "package:chrome": "node tools/package-extension.mjs",
+    "captures:store": "node tools/store-captures.mjs"
   },
   "devDependencies": {
     "puppeteer": "^24.0.0"

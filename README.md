@@ -22,6 +22,7 @@ pour protéger de l'exposition permanente à ce contenu et aider à résister à
   Chaque déverrouillage double l'attente suivante (retour à la normale après 7 jours) et remet à zéro le compteur de jours.
 - **Réglages modifiables uniquement dans le sens le plus strict.**
 - **Aucune donnée collectée** : pas de compte, pas de statistiques, rien n'est envoyé sur Internet.
+  Voir la [politique de confidentialité](PRIVACY.md).
 
 ## Ce que fait Rempart pour Windows
 
