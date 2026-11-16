@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Rempart.Service/Rempart.Service.csproj" />
+  <Project Path="Rempart.Tests/Rempart.Tests.csproj" />
+</Solution>

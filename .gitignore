@@ -6,3 +6,9 @@ extension/rules/meta.json
 data/
 # Généré par Chrome au chargement de l'extension
 extension/_metadata/
+# Etat d'origine du PC (local seulement)
+windows/sauvegarde/
+# Compilation .NET
+windows/**/bin/
+windows/**/obj/
+windows/publie/
