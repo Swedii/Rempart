@@ -10,10 +10,11 @@ Tout ce qu'il faut copier dans le tableau de bord développeur du Chrome Web Sto
 - **Nom et résumé** : lus dans le paquet (`_locales`), rien à saisir.
 - **Catégorie** : Lifestyle → Well-being (Bien-être)
 - **Icône de la boutique** : `extension/icons/128.png`
-- **Captures (1280×800)** : `store/captures/fr/1-blocage.png` à `4-reglages.png` (fiche FR),
-  `store/captures/en/…` (fiche EN)
+- **Captures (1280×800)** : international = `store/captures/en/1-blocage.png` à `4-reglages.png` ;
+  localisé français = `store/captures/fr/…`
 - **Petite tuile promotionnelle (440×280)** : `store/captures/fr/tuile-440x280.png` (EN : `store/captures/en/…`)
-- **Site web** : https://github.com/Swedii/Rempart
+- **URL officielle** : laisser vide (exige un domaine vérifié dans la Search Console)
+- **Page d'accueil** : https://github.com/Swedii/Rempart
 - **Assistance** : https://github.com/Swedii/Rempart/issues
 
 ### Description détaillée (FR)
@@ -113,6 +114,21 @@ Cocher les trois certifications :
 
 **URL des règles de confidentialité / Privacy policy URL** :
 https://github.com/Swedii/Rempart/blob/main/PRIVACY.md
+
+## Instructions de test / Test instructions
+
+```
+No account, login or configuration is needed: protection is active as soon as the extension is installed.
+
+1. Blocking: open any well-known adult site (e.g. pornhub.com). The request is blocked and the Rempart block page is shown instead.
+2. SafeSearch: search anything on google.com or bing.com: the results URL is redirected to the SafeSearch version (safe=active / adlt=strict). On youtube.com, Restricted Mode is enforced.
+3. Image search: on Google Images, thumbnails are blurred; clicking one reveals it.
+4. Settings: open the extension's options page. Settings can only be made stricter, never looser (by design).
+5. Unlock process (optional, slow by design): on the block page, "I still want to access it" starts a 30-minute wait with the tab open, with reflection questions, a text to retype by hand and 5 captchas. It is meant to discourage, so it cannot be skipped.
+6. False positive: on the block page, "Nothing pornographic on this site?" opens a pre-filled GitHub issue form and lets the user allow the site locally after 24 hours.
+
+Everything runs locally; the extension makes no network requests of its own and collects no data. Source code: https://github.com/Swedii/Rempart
+```
 
 ## Onglet « Distribution »
 
