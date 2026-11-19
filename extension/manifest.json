@@ -3,7 +3,7 @@
   "name": "__MSG_extName__",
   "short_name": "Rempart",
   "description": "__MSG_extDescription__",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "default_locale": "fr",
   "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
   "permissions": ["declarativeNetRequest", "storage", "alarms", "webNavigation"],
@@ -15,7 +15,12 @@
   "declarative_net_request": {
     "rule_resources": [
       { "id": "safety", "enabled": true, "path": "rules/safety.json" },
-      { "id": "blocklist", "enabled": true, "path": "rules/blocklist.json" }
+      { "id": "blocklist-1", "enabled": true, "path": "rules/blocklist-1.json" },
+      { "id": "blocklist-2", "enabled": true, "path": "rules/blocklist-2.json" },
+      { "id": "blocklist-3", "enabled": true, "path": "rules/blocklist-3.json" },
+      { "id": "blocklist-4", "enabled": true, "path": "rules/blocklist-4.json" },
+      { "id": "blocklist-5", "enabled": true, "path": "rules/blocklist-5.json" },
+      { "id": "blocklist-6", "enabled": true, "path": "rules/blocklist-6.json" }
     ]
   },
   "content_scripts": [
@@ -44,6 +49,10 @@
   "action": { "default_popup": "popup/popup.html", "default_icon": { "16": "icons/16.png", "32": "icons/32.png" } },
   "options_ui": { "page": "pages/options.html", "open_in_tab": true },
   "browser_specific_settings": {
-    "gecko": { "id": "rempart@rempart-bloqueur", "strict_min_version": "128.0" }
+    "gecko": {
+      "id": "rempart@rempart-bloqueur",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
   }
 }

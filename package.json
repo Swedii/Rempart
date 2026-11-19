@@ -10,8 +10,10 @@
     "build:icons": "node tools/make-icons.mjs",
     "test": "node tests/false-positives.test.mjs && node tests/extension.test.mjs",
     "test:fp": "node tests/false-positives.test.mjs",
+    "test:firefox": "node tests/extension.test.mjs --firefox",
     "audit": "node tools/audit-false-positives.mjs 100000",
     "package:chrome": "node tools/package-extension.mjs",
+    "package:firefox": "node tools/package-extension.mjs --firefox",
     "captures:store": "node tools/store-captures.mjs"
   },
   "devDependencies": {

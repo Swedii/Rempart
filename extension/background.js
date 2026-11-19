@@ -18,6 +18,22 @@ const UNLOCK_PRIORITY = 100;
 
 const ALL_TYPES = ["main_frame", "sub_frame", "image", "media", "script", "xmlhttprequest",
   "stylesheet", "font", "object", "websocket", "ping", "other"];
+const FRAME_TYPES = ["main_frame", "sub_frame"];
+const SUB_TYPES = ALL_TYPES.filter((t) => !FRAME_TYPES.includes(t));
+const SUB_RULE_OFFSET = 100_000; // règle « contenu de la page » associée à une autorisation : id + 100 000
+
+/**
+ * Autoriser un site = deux règles « allow » : ouvrir le site lui-même (pages et cadres), et charger ce que ses pages
+ * demandent (images, vidéos, scripts…). Pas de « allowAllRequests » : dans Firefox, elle laisse passer la navigation
+ * suivante du même onglet, donc n'importe quel site bloqué ouvert depuis le site autorisé.
+ */
+function allowRules(id, priority, domains) {
+  return [
+    { id, priority, action: { type: "allow" }, condition: { requestDomains: domains, resourceTypes: FRAME_TYPES } },
+    { id: id + SUB_RULE_OFFSET, priority, action: { type: "allow" },
+      condition: { initiatorDomains: domains, resourceTypes: SUB_TYPES } },
+  ];
+}
 
 const DEFAULT_SETTINGS = { baseWaitMin: 30, accessMin: 10, selfMessage: "" };
 const LIMITS = { baseWaitMaxMin: 24 * 60, accessMinMin: 1 };
@@ -85,17 +101,18 @@ async function syncUnlocks() {
   const remove = [];
   const unlocks = {};
   for (const r of rules) {
-    if (r.id < RULE_UNLOCK_BASE) continue;
-    const u = st.unlocks[r.id];
+    const id = r.id >= SUB_RULE_OFFSET ? r.id - SUB_RULE_OFFSET : r.id;
+    if (id < RULE_UNLOCK_BASE) continue;
+    const u = st.unlocks[id];
     if (!u || u.expiresAt <= now) remove.push(r.id);
     else {
-      unlocks[r.id] = u;
-      chrome.alarms.create(`unlock-${r.id}`, { when: u.expiresAt });
+      unlocks[id] = u;
+      chrome.alarms.create(`unlock-${id}`, { when: u.expiresAt });
     }
   }
   if (remove.length) await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: remove });
   await local.set({ unlocks });
-  for (const id of remove) await relockTabs(st.unlocks[id]?.domain);
+  for (const id of remove) if (id < SUB_RULE_OFFSET) await relockTabs(st.unlocks[id]?.domain);
 }
 
 async function relockTabs(domain) {
@@ -116,12 +133,8 @@ async function grantAccess(domain, minutes) {
   while (used.has(id)) id++;
   const expiresAt = Date.now() + minutes * MIN;
   await chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: [id],
-    addRules: [{
-      id, priority: UNLOCK_PRIORITY,
-      action: { type: "allowAllRequests" },
-      condition: { requestDomains: [domain], resourceTypes: ["main_frame", "sub_frame"] },
-    }],
+    removeRuleIds: [id, id + SUB_RULE_OFFSET],
+    addRules: allowRules(id, UNLOCK_PRIORITY, [domain]),
   });
   st.unlocks[id] = { domain, expiresAt };
   await local.set({ unlocks: st.unlocks });
@@ -198,12 +211,8 @@ async function saveSettings(next) {
 // peut attendre, une envie non). Le compteur n'est pas touché. Annuler ou retirer est immédiat (plus strict).
 
 async function syncAllowedRule(allowed) {
-  const addRules = allowed.length ? [{
-    id: RULE_ALLOWED, priority: ALLOWED_PRIORITY,
-    action: { type: "allowAllRequests" },
-    condition: { requestDomains: allowed, resourceTypes: ["main_frame", "sub_frame"] },
-  }] : [];
-  await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: [RULE_ALLOWED], addRules });
+  const addRules = allowed.length ? allowRules(RULE_ALLOWED, ALLOWED_PRIORITY, allowed) : [];
+  await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: [RULE_ALLOWED, RULE_ALLOWED + SUB_RULE_OFFSET], addRules });
 }
 
 /** Active les autorisations dont le délai est écoulé et recrée les alarmes des autres. */

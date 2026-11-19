@@ -1,6 +1,7 @@
 // Construit la liste de domaines bloqués à partir de listes publiques.
 // Sorties :
-//   extension/rules/blocklist.json  — règles declarativeNetRequest (ensemble statique)
+//   extension/rules/blocklist-1.json … blocklist-6.json — règles declarativeNetRequest (ensembles statiques,
+//     un paquet de 100 000 domaines par fichier : Firefox Add-ons refuse d'analyser un fichier de plus de 5 Mo)
 //   extension/rules/meta.json       — nombre de domaines, date, sources
 //   data/blocklist.txt              — un domaine par ligne (pour le futur service Windows et l'appli Android)
 // Usage : node tools/build-blocklist.mjs [--offline]   (--offline = réutilise tools/cache sans télécharger)
@@ -90,6 +91,17 @@ export function buildDomainSet(domains, allow) {
   return out.sort();
 }
 
+// Nombre fixe de fichiers de règles, déclarés un par un dans manifest.json (les fichiers en trop restent vides).
+export const RULE_FILES = 6;
+
+/** Une règle (un paquet de domaines) par fichier : extension/rules/blocklist-<n>.json. */
+export async function writeRuleFiles(rules) {
+  if (rules.length > RULE_FILES) throw new Error(`${rules.length} paquets de domaines : augmenter RULE_FILES et manifest.json`);
+  for (let n = 1; n <= RULE_FILES; n++) {
+    await writeFile(join(ROOT, "extension", "rules", `blocklist-${n}.json`), JSON.stringify(rules[n - 1] ? [rules[n - 1]] : []));
+  }
+}
+
 export function makeRules(domains) {
   const rules = [];
   let id = 1;
@@ -146,14 +158,14 @@ async function main() {
 
   await mkdir(join(ROOT, "extension", "rules"), { recursive: true });
   await mkdir(join(ROOT, "data"), { recursive: true });
-  await writeFile(join(ROOT, "extension", "rules", "blocklist.json"), JSON.stringify(makeRules(domains)));
+  await writeRuleFiles(makeRules(domains));
   await writeFile(join(ROOT, "extension", "rules", "meta.json"), JSON.stringify({
     count: domains.length,
     builtAt: new Date().toISOString(),
     sources: SOURCES.map(({ name, url, license }) => ({ name, url, license })),
   }, null, 2));
   await writeFile(join(ROOT, "data", "blocklist.txt"), domains.join("\n") + "\n");
-  console.log("Écrit : extension/rules/blocklist.json, extension/rules/meta.json, data/blocklist.txt");
+  console.log(`Écrit : extension/rules/blocklist-1…${RULE_FILES}.json, extension/rules/meta.json, data/blocklist.txt`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

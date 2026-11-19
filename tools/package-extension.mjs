@@ -1,5 +1,7 @@
-// Fabrique le paquet de l'extension pour le Chrome Web Store : sortie/rempart-chrome-<version>.zip
-// Usage : npm run package:chrome   (lancer d'abord « npm run build:blocklist »)
+// Fabrique le paquet de l'extension : Chrome Web Store (sortie/rempart-chrome-<version>.zip) ou, avec --firefox,
+// Firefox Add-ons (sortie/rempart-firefox-<version>.zip).
+// Usage : npm run package:chrome · npm run package:firefox   (lancer d'abord « npm run build:blocklist »)
+// Paquet Firefox : background.service_worker retiré (Firefox utilise background.scripts, une page d'événements).
 // Le manifeste du paquet Chrome est nettoyé des clés propres à Firefox (background.scripts,
 // browser_specific_settings), qui ne servent à rien dans Chrome et provoquent des avertissements.
 // Zip écrit à la main (aucune dépendance) : chemins avec « / », compression deflate.
@@ -16,7 +18,7 @@ const OUT = join(ROOT, "sortie");
 // Fichiers jamais inclus : générés par Chrome au chargement, fichiers système.
 const IGNORE = new Set(["_metadata", ".DS_Store", "Thumbs.db"]);
 
-for (const needed of ["rules/blocklist.json", "rules/meta.json"]) {
+for (const needed of ["rules/blocklist-1.json", "rules/meta.json"]) {
   if (!existsSync(join(EXT, needed))) {
     console.error(`Manque extension/${needed} : lancer d'abord « npm run build:blocklist ».`);
     process.exit(1);
@@ -43,9 +45,14 @@ for (const lang of readdirSync(join(EXT, "_locales"))) {
   }
 }
 
+const FIREFOX = process.argv.includes("--firefox");
 const manifest = JSON.parse(readFileSync(join(EXT, "manifest.json"), "utf8"));
-delete manifest.browser_specific_settings;
-delete manifest.background.scripts;
+if (FIREFOX) {
+  delete manifest.background.service_worker;
+} else {
+  delete manifest.browser_specific_settings;
+  delete manifest.background.scripts;
+}
 
 const entries = listFiles(EXT).map((full) => {
   const name = relative(EXT, full).split(sep).join("/");
@@ -102,6 +109,6 @@ end.writeUInt32LE(centralSize, 12);
 end.writeUInt32LE(offset, 16);
 
 mkdirSync(OUT, { recursive: true });
-const file = join(OUT, `rempart-chrome-${manifest.version}.zip`);
+const file = join(OUT, `rempart-${FIREFOX ? "firefox" : "chrome"}-${manifest.version}.zip`);
 writeFileSync(file, Buffer.concat([...local, ...central, end]));
 console.log(`${relative(ROOT, file)} : ${entries.length} fichiers, ${(statSync(file).size / 1e6).toFixed(1)} Mo`);

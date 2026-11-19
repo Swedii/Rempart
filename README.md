@@ -77,9 +77,13 @@ Prérequis : Node.js 20+.
 
 ```sh
 npm install
-npm run build:blocklist     # télécharge les listes et génère extension/rules/blocklist.json
+npm run build:blocklist     # télécharge les listes et génère extension/rules/blocklist-*.json
 npx puppeteer browsers install chrome
 npm test                    # test de bout en bout dans un Chrome headless, réseau coupé
+npx puppeteer browsers install firefox
+npm run test:firefox        # même test dans un Firefox headless (proxy local, rien ne sort du PC)
+npm run package:chrome      # paquets pour les boutiques -> sortie/
+npm run package:firefox
 ```
 
 Charger l'extension : `chrome://extensions` → mode développeur → « Charger l'extension non empaquetée » → dossier `extension/`.

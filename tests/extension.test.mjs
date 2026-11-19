@@ -1,7 +1,7 @@
-// Test de bout en bout de l'extension dans un vrai Chrome (Chrome for Testing, headless).
-// Toute résolution DNS est coupée (--host-resolver-rules) : aucun site n'est réellement chargé.
-// Les blocages agissent avant la résolution DNS, on peut donc les vérifier sans réseau.
-// Usage : npm test   (option : SHOTS=dossier pour enregistrer des captures d'écran)
+// Test de bout en bout de l'extension dans un vrai Chrome (Chrome for Testing, headless) ou Firefox (headless).
+// Rien ne sort du PC : Chrome a sa résolution DNS coupée (--host-resolver-rules) ; Firefox passe par un proxy
+// qui est le mini-serveur local lui-même (HTTPS refusé, DNS jamais utilisé). Aucun site n'est réellement chargé.
+// Usage : npm test   ·   npm run test:firefox   (option : SHOTS=dossier pour enregistrer des captures d'écran)
 
 import puppeteer from "puppeteer";
 import { readFileSync } from "node:fs";
@@ -12,6 +12,9 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const EXT = join(ROOT, "extension");
 const SHOTS = process.env.SHOTS;
+const FIREFOX = process.argv.includes("--firefox") || process.env.BROWSER === "firefox";
+const FF_UUID = "6c0d4a3e-0000-4000-8000-00000000a11e";        // adresse interne fixe de l'extension dans Firefox
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let failures = 0;
 const ok = (cond, label, extra = "") => {
@@ -25,6 +28,7 @@ const PAGES = {
   "rta-page.example": '<!doctype html><head><meta name="rating" content="RTA-5042-1996-1400-1577-RTA"></head><body>adulte</body>',
 };
 PAGES["x.com"] = "<!doctype html><p>faux X</p>";
+PAGES["cdn.xvideos.com"] = "contenu chargé par une page déverrouillée";
 PAGES["www.reddit.com"] = "";
 const X_API = JSON.stringify({ data: {
   sensible: { __typename: "Tweet", rest_id: "1", legacy: { possibly_sensitive: true,
@@ -40,6 +44,7 @@ const REDDIT_FEED = '<!doctype html><body><shreddit-post id="nsfw-post" nsfw>pos
   '<shreddit-post id="news-post">Article de presse <a href="https://www.pornhub.com/press">lien</a></shreddit-post></body>';
 const server = createServer((req, res) => {
   const host = (req.headers.host || "").split(":")[0];
+  req.url = new URL(req.url, "http://local").pathname + new URL(req.url, "http://local").search; // proxy (Firefox) : adresse complète
   const json = (o) => { res.writeHead(200, { "content-type": "application/json" }); res.end(typeof o === "string" ? o : JSON.stringify(o)); };
   if (host === "x.com" && req.url.startsWith("/i/api/graphql/")) return json(X_API);
   if (host === "www.reddit.com") {
@@ -49,43 +54,100 @@ const server = createServer((req, res) => {
   res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
   res.end(host === "www.reddit.com" ? REDDIT_FEED : PAGES[host] ?? "<!doctype html><p>page normale</p>");
 });
+// Firefox : le serveur sert aussi de proxy ; les tunnels HTTPS sont refusés (= « réseau atteint », jamais de vraie sortie).
+server.on("connect", (req, socket) => socket.destroy());
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const PORT = server.address().port;
 const RESOLVER = Object.keys(PAGES).map((h) => `MAP ${h} 127.0.0.1:${PORT}`).join(", ") + ", MAP * ~NOTFOUND";
 
-const browser = await puppeteer.launch({
-  headless: true,
-  pipe: true,
-  enableExtensions: [EXT],
-  args: [`--host-resolver-rules=${RESOLVER}`, "--disable-features=HttpsUpgrades,HttpsFirstBalancedModeAutoEnable", "--lang=fr", "--window-size=900,1100"],
-  defaultViewport: { width: 900, height: 1100 },
-});
+const browser = FIREFOX
+  ? await puppeteer.launch({
+      browser: "firefox",
+      headless: true,
+      defaultViewport: { width: 900, height: 1100 },
+      extraPrefsFirefox: {
+        "network.proxy.type": 1, "network.proxy.http": "127.0.0.1", "network.proxy.http_port": PORT,
+        "network.proxy.ssl": "127.0.0.1", "network.proxy.ssl_port": PORT,
+        "network.proxy.allow_hijacking_localhost": true, "network.proxy.no_proxies_on": "",
+        "network.trr.mode": 5, "dom.security.https_first": false, "dom.security.https_only_mode": false,
+        "intl.locale.requested": "fr", "intl.accept_languages": "fr",
+        "extensions.webextensions.uuids": JSON.stringify({ "rempart@rempart-bloqueur": FF_UUID }),
+      },
+    })
+  : await puppeteer.launch({
+      headless: true,
+      pipe: true,
+      enableExtensions: [EXT],
+      args: [`--host-resolver-rules=${RESOLVER}`, "--disable-features=HttpsUpgrades,HttpsFirstBalancedModeAutoEnable", "--lang=fr", "--window-size=900,1100"],
+      defaultViewport: { width: 900, height: 1100 },
+    });
 
 try {
-  const swTarget = await browser.waitForTarget((t) => t.type() === "service_worker" && t.url().endsWith("background.js"), { timeout: 60_000 });
-  const sw = await swTarget.worker();
-  const extId = new URL(swTarget.url()).host;
-  const extUrl = (p) => `chrome-extension://${extId}/${p}`;
+  let extUrl, bg;
+  if (FIREFOX) {
+    await browser.installExtension(EXT);
+    extUrl = (p) => `moz-extension://${FF_UUID}/${p}`;
+  } else {
+    const swTarget = await browser.waitForTarget((t) => t.type() === "service_worker" && t.url().endsWith("background.js"), { timeout: 60_000 });
+    const sw = await swTarget.worker();
+    const extId = new URL(swTarget.url()).host;
+    extUrl = (p) => `chrome-extension://${extId}/${p}`;
+    bg = (fn) => sw.evaluate(fn);
+  }
+  const EXT_PROTOCOL = FIREFOX ? "moz-extension:" : "chrome-extension:";
 
-  // ---- règles chargées ----
-  const rulesets = await sw.evaluate(() => chrome.declarativeNetRequest.getEnabledRulesets());
-  ok(rulesets.includes("blocklist") && rulesets.includes("safety"), "ensembles de règles actifs", JSON.stringify(rulesets));
+  // Adresse actuelle d'un onglet (dans Firefox, page.url() ne suit pas les redirections vers l'extension).
+  const here = async (p) => (FIREFOX ? p.evaluate(() => location.href).catch(() => p.url()) : p.url());
 
   const page = await browser.newPage();
   // La page de blocage demande confirmation si on la quitte en plein parcours : on accepte.
   page.on("dialog", (d) => d.accept().catch(() => {}));
   // Bloqué → la navigation aboutit sur la page de l'extension.
-  // Non bloqué → la requête part vers le réseau et échoue (DNS coupé) : on renvoie alors l'erreur.
-  const visit = async (url) => {
-    try {
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 });
-      return page.url();
-    } catch (e) {
-      return `error:${e.message.split("\n")[0]}`;
+  // Non bloqué → la requête part vers le réseau et échoue (DNS coupé / HTTPS refusé) : on renvoie alors l'erreur.
+  const visit = async (url, p = page) => {
+    if (!FIREFOX) {
+      try {
+        await p.goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 });
+        return p.url();
+      } catch (e) {
+        return `error:${e.message.split("\n")[0]}`;
+      }
     }
+    // Firefox : la navigation vers une page d'extension n'est jamais signalée comme finie à l'outil de test.
+    // On marque le document actuel, puis on attend un nouveau document chargé.
+    await p.evaluate(() => { window.__rempartAncien = true; }).catch(() => {});
+    let fini = null;
+    p.goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 }).then(() => { fini = "ok"; },
+      (e) => { fini = `error:${e.message.split("\n")[0]}`; });
+    for (const debut = Date.now(); Date.now() - debut < 15_000; await sleep(150)) {
+      if (fini?.startsWith("error:") && !fini.includes("timeout")) return fini;
+      const etat = await p.evaluate(() => [location.href, !!window.__rempartAncien, document.readyState]).catch(() => null);
+      if (etat && !etat[1] && etat[2] !== "loading" && etat[0] !== "about:blank") return etat[0];
+    }
+    return fini ?? "error:timeout";
   };
   const isBlocked = (u) => u.startsWith(extUrl("pages/blocked.html"));
-  const reachedNetwork = (u) => u.startsWith("error:") && u.includes("ERR_NAME_NOT_RESOLVED");
+  // (Firefox garde l'adresse du site sur sa page d'erreur réseau : une adresse web = non bloqué.)
+  const reachedNetwork = (u) => FIREFOX ? /^(https?:|error:(?!timeout))/.test(u) : u.startsWith("error:") && u.includes("ERR_NAME_NOT_RESOLVED");
+
+  if (FIREFOX) {
+    // Firefox : l'arrière-plan est une page d'événements ; on l'appelle depuis une page de l'extension.
+    const bgPage = await browser.newPage();
+    await visit(extUrl("pages/options.html"), bgPage);
+    bg = async (fn) => {
+      await bgPage.evaluate(async () => {
+        const g = await browser.runtime.getBackgroundPage();
+        window.syncUnlocks = () => g.syncUnlocks();
+        window.activatePendingAllows = () => g.activatePendingAllows();
+      });
+      return bgPage.evaluate(fn);
+    };
+  }
+
+  // ---- règles chargées ----
+  const rulesets = await bg(() => chrome.declarativeNetRequest.getEnabledRulesets());
+  ok([1, 2, 3, 4, 5, 6].every((n) => rulesets.includes(`blocklist-${n}`)) && rulesets.includes("safety"), "ensembles de règles actifs", JSON.stringify(rulesets));
+  await page.bringToFront();
 
   const domains = readFileSync(join(ROOT, "data", "blocklist.txt"), "utf8").trim().split("\n");
   const last = domains[domains.length - 1];
@@ -96,7 +158,8 @@ try {
   // Faux positifs connus : ne doivent JAMAIS être bloqués (audit du 16/11/2026).
   for (const d of ["b-cdn.net", "cosmopolitan.com", "ekstrabladet.dk", "kinopoisk.ru", "match.com", "vip.com",
                    "x.github.io", "ville-pornic.fr", "cabinporn.com", "yanmaga.jp"]) {
-    ok(reachedNetwork(await visit(`https://${d}/`)), `faux positif évité : ${d}`);
+    const u = await visit(`https://${d}/`);
+    ok(reachedNetwork(u), `faux positif évité : ${d}`, u);
   }
   ok(reachedNetwork(await visit("https://example.com/")), "example.com non bloqué");
   ok(reachedNetwork(await visit("https://yourbrainonporn.com/")), "site d'aide non bloqué malgré le mot-clé");
@@ -108,9 +171,10 @@ try {
   const seen = [];
   const onReq = (r) => seen.push(r.url());
   page.on("request", onReq);
-  await visit("https://www.google.fr/search?q=test&safe=off");
-  await visit("https://www.bing.com/search?q=test");
-  await visit("https://duckduckgo.com/?q=test");
+  const S = FIREFOX ? "http" : "https";
+  await visit(`${S}://www.google.fr/search?q=test&safe=off`);
+  await visit(`${S}://www.bing.com/search?q=test`);
+  await visit(`${S}://duckduckgo.com/?q=test`);
   page.off("request", onReq);
   ok(seen.some((u) => u.includes("google.fr/search") && new URL(u).searchParams.get("safe") === "active"), "Google : safe=active forcé", seen.join(" | "));
   ok(seen.some((u) => u.includes("bing.com/search") && new URL(u).searchParams.get("adlt") === "strict"), "Bing : adlt=strict forcé");
@@ -139,7 +203,7 @@ try {
   ok(r.ok === false && r.error === "tooEarly", "déverrouillage refusé avant la fin de l'attente", JSON.stringify(r));
 
   // On avance l'horloge du parcours de 30 min côté arrière-plan.
-  await sw.evaluate(async () => {
+  await bg(async () => {
     const { parcours } = await chrome.storage.session.get("parcours");
     for (const k in parcours) parcours[k].startedAt -= parcours[k].waitMs;
     await chrome.storage.session.set({ parcours });
@@ -160,13 +224,20 @@ try {
   r = await pageSend({ type: "completeParcours", domain: "pornhub.com", answers, copied: copyText });
   ok(r.ok === true, "parcours complet accepté", JSON.stringify(r));
 
-  const dyn = await sw.evaluate(() => chrome.declarativeNetRequest.getDynamicRules());
-  ok(dyn.some((x) => x.action.type === "allowAllRequests" && x.condition.requestDomains?.[0] === "pornhub.com"), "accès temporaire créé");
-  const ph = await visit("http://pornhub.com/"); await new Promise((res) => setTimeout(res, 1000)); ok(page.url() === "http://pornhub.com/" && await page.$("#ok"), "site accessible pendant l'accès temporaire", ph + " | " + page.url());
-  const xv = await visit("https://xvideos.com/"); ok(isBlocked(xv), "les autres sites restent bloqués", xv);
+  const dyn = await bg(() => chrome.declarativeNetRequest.getDynamicRules());
+  ok(dyn.some((x) => x.action.type === "allow" && x.condition.requestDomains?.[0] === "pornhub.com"), "accès temporaire créé");
+  const ph = await visit("http://pornhub.com/"); await sleep(1000); ok(await here(page) === "http://pornhub.com/" && await page.$("#ok"), "site accessible pendant l'accès temporaire", ph + " | " + await here(page));
+  const sousRessource = await page.evaluate(() => fetch("http://cdn.xvideos.com/image", { mode: "no-cors" }).then(() => "chargée", (e) => String(e)));
+  ok(sousRessource === "chargée", "le site déverrouillé charge ses images et vidéos (même hébergées ailleurs)", sousRessource);
+  // Firefox laissait passer, depuis l'onglet déverrouillé, la navigation vers un autre site bloqué (allowAllRequests).
+  const xv = await visit("https://xvideos.com/"); ok(isBlocked(xv), "les autres sites restent bloqués (même onglet)", xv);
+  { const t2 = await browser.newPage(); const xv2 = await visit("https://xvideos.com/", t2); await t2.close();
+    ok(isBlocked(xv2), "les autres sites restent bloqués (nouvel onglet)", xv2); }
+  await visit("http://example.com/");
+  { const xv3 = await visit("https://xvideos.com/"); ok(isBlocked(xv3), "les autres sites restent bloqués (même onglet, après un site neutre)", xv3); }
 
   const ctl = await browser.newPage();
-  await ctl.goto(extUrl("popup/popup.html"));
+  await visit(extUrl("popup/popup.html"), ctl);
   const sum = await ctl.evaluate(() => chrome.runtime.sendMessage({ type: "summary" }));
   await ctl.close();
   ok(sum.level === 1 && sum.waitMs === 60 * 60_000, `attente suivante doublée (${sum.waitMs / 60000} min)`);
@@ -174,19 +245,19 @@ try {
 
   // Fin de l'accès : on fait expirer et on resynchronise.
   await visit("http://pornhub.com/");
-  await sw.evaluate(async () => {
+  await bg(async () => {
     const { unlocks } = await chrome.storage.local.get("unlocks");
     for (const k in unlocks) unlocks[k].expiresAt = Date.now() - 1000;
     await chrome.storage.local.set({ unlocks });
     await syncUnlocks();
   });
   await new Promise((res) => setTimeout(res, 1500));
-  ok(isBlocked(page.url()), "onglet reverrouillé à la fin de l'accès", page.url());
+  const reverrouille = await here(page); ok(isBlocked(reverrouille), "onglet reverrouillé à la fin de l'accès", reverrouille);
   ok(isBlocked(await visit("https://pornhub.com/")), "site de nouveau bloqué");
 
   // ---- réglages (seulement plus strict) ----
   const opt = await browser.newPage();
-  await opt.goto(extUrl("pages/options.html"));
+  await visit(extUrl("pages/options.html"), opt);
   const save = (settings) => opt.evaluate((s) => chrome.runtime.sendMessage({ type: "saveSettings", settings: s }), settings);
   ok((await save({ baseWaitMin: 20 })).ok === false, "attente : baisse refusée");
   ok((await save({ baseWaitMin: 45 })).ok === true, "attente : hausse acceptée");
@@ -196,15 +267,15 @@ try {
 
   // ---- balise RTA : domaine appris ----
   await visit("http://rta-page.example/");
-  await page.waitForFunction(() => location.protocol === "chrome-extension:", { timeout: 5000 }).catch(() => {});
-  ok(isBlocked(page.url()), "page portant la balise RTA bloquée", page.url());
-  const learned = (await sw.evaluate(() => chrome.storage.local.get("learned"))).learned ?? [];
+  await page.waitForFunction((pr) => location.protocol === pr, { timeout: 5000 }, EXT_PROTOCOL).catch(() => {});
+  const rta = await here(page); ok(isBlocked(rta), "page portant la balise RTA bloquée", rta);
+  const learned = (await bg(() => chrome.storage.local.get("learned"))).learned ?? [];
   ok(learned.includes("rta-page.example"), "domaine RTA appris");
   ok(isBlocked(await visit("http://rta-page.example/autre")), "domaine RTA bloqué dès la requête suivante");
 
   // ---- faux positif : autorisation après 24 h, compteur intact ----
   const ctl2 = await browser.newPage();
-  await ctl2.goto(extUrl("popup/popup.html"));
+  await visit(extUrl("popup/popup.html"), ctl2);
   const summaryNow = () => ctl2.evaluate(() => chrome.runtime.sendMessage({ type: "summary" }));
   const before = await summaryNow();
   await page.bringToFront(); // les clics ne fonctionnent pas dans un onglet en arrière-plan
@@ -216,7 +287,7 @@ try {
   if (SHOTS) await page.screenshot({ path: join(SHOTS, "5-faux-positif.png"), fullPage: true });
   ok((await summaryNow()).pendingAllows["pornhub.com"] > Date.now() + 23 * 3600_000, "autorisation demandée, effective dans 24 h");
   ok(isBlocked(await visit("https://pornhub.com/")), "site toujours bloqué pendant les 24 h");
-  const skip24h = () => sw.evaluate(async () => {
+  const skip24h = () => bg(async () => {
     const { pendingAllows } = await chrome.storage.local.get("pendingAllows");
     for (const k in pendingAllows) pendingAllows[k] = Date.now() - 1000;
     await chrome.storage.local.set({ pendingAllows });
@@ -236,7 +307,7 @@ try {
   ok(!(await summaryNow()).learned.includes("rta-page.example"), "domaine autorisé retiré des domaines appris");
   await visit("http://rta-page.example/");
   await new Promise((res) => setTimeout(res, 1500));
-  ok(page.url() === "http://rta-page.example/", "domaine autorisé non rebloqué par la balise", page.url());
+  const rta2 = await here(page); ok(rta2 === "http://rta-page.example/", "domaine autorisé non rebloqué par la balise", rta2);
   await ctl2.close();
   // ---- X : médias des tweets sensibles retirés (fetch et XHR) ----
   await visit("http://x.com/home");
@@ -268,8 +339,8 @@ try {
   ok(rd.mention !== "none" && rd.news !== "none", "Reddit, dans le doute : mot « NSFW » ou lien adulte seuls ne masquent rien", JSON.stringify(rd));
   ok(rd.nsfw === "none" && rd.safe !== "none", "Reddit : publication NSFW masquée, normale visible", JSON.stringify(rd));
   await visit("http://www.reddit.com/r/nsfwtest/");
-  await page.waitForFunction(() => location.protocol === "chrome-extension:", { timeout: 5000 }).catch(() => {});
-  ok(page.url().startsWith(extUrl("pages/filtered.html")), "Reddit : communauté 18+ filtrée", page.url());
+  await page.waitForFunction((pr) => location.protocol === pr, { timeout: 5000 }, EXT_PROTOCOL).catch(() => {});
+  const rd18 = await here(page); ok(rd18.startsWith(extUrl("pages/filtered.html")), "Reddit : communauté 18+ filtrée", rd18);
 } finally {
   await browser.close();
   server.close();
