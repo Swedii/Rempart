@@ -33,6 +33,8 @@ Un installateur (`Rempart-0.1.0-installation.exe`) met en place un service Windo
   sans passer par un serveur de Rempart.
 - **Réglages imposés à Chrome, Edge et Firefox** : navigation privée et mode invité désactivés, DNS chiffré du
   navigateur coupé (il contournerait le filtre), SafeSearch forcé sur Google et Bing, YouTube en mode restreint modéré.
+- **Extension Rempart installée de force dans Chrome et Edge** (dès sa publication sur le Chrome Web Store) :
+  impossible de la désactiver ou de la supprimer depuis le navigateur ; seule la désinstallation de Rempart par code l'enlève.
 - **Surveillance toutes les 15 secondes** : si un réglage ou le DNS d'une carte réseau est modifié, il est remis en place.
 - **Mode protection** : le service refuse l'arrêt, redémarre tout seul s'il est tué et se relance au démarrage du PC.
 - **Désinstallation par code retardé** : on demande le code dans l'application Rempart ; il s'affiche **au bout de
@@ -63,8 +65,7 @@ plateformes de blogs ne sont pas bloqués.
 ## Feuille de route
 
 1. Extension navigateur — *v0.1 ; publication sur le Chrome Web Store puis Firefox Add-ons à venir*
-2. Service Windows — *v0.1* ; à venir : extension installée de force dans Chrome et Edge (dès sa publication sur le
-   Chrome Web Store), installateur signé
+2. Service Windows — *v0.1* (extension installée de force dans Chrome et Edge) ; à venir : installateur signé
 3. Appli Android (VPN local de filtrage)
 4. Guide iPhone (Temps d'écran + profil DNS) et mode « tiers de confiance »
 
@@ -101,8 +102,8 @@ Windows, et `windows\REMISE-A-ZERO.cmd` remet tout comme avant (immédiat en mod
 ### Limites connues (v0.1)
 
 - Sans le service Windows, l'extension peut être désactivée depuis `chrome://extensions` et ne fonctionne pas en
-  navigation privée. Le service n'installe pas encore l'extension de force (il faut qu'elle soit publiée sur le
-  Chrome Web Store).
+  navigation privée. Avec le service, elle est installée de force (Chrome et Edge) : l'installation forcée ne prend
+  effet qu'une fois l'extension publiée sur le Chrome Web Store.
 - L'installateur n'est pas encore signé : Windows SmartScreen et certains antivirus peuvent avertir.
 - SafeSearch non forcé sur Ecosia, Qwant et Startpage (paramètres à vérifier) ; Instagram, Bluesky, Discord et
   Telegram ne sont pas encore filtrés.
@@ -130,7 +131,8 @@ No data is collected.
 
 **Windows**: an installer sets up a service and the `Rempart.exe` app. A local DNS filter blocks the same sites
 system-wide (other queries go to the PC's original DNS, never to a Rempart server); Chrome, Edge and Firefox policies
-disable private/guest browsing and browser DNS-over-HTTPS and enforce SafeSearch and YouTube Restricted Mode; settings
+disable private/guest browsing and browser DNS-over-HTTPS and enforce SafeSearch and YouTube Restricted Mode, and the
+Rempart extension is force-installed in Chrome and Edge (it cannot be disabled or removed from the browser); settings
 are checked and restored every 15 seconds. In protection mode the service refuses to stop, restarts if killed and
 starts with Windows. Uninstalling requires a code requested in the app: it appears after 3 hours and stays valid for
 15 minutes. An emergency reset script removes everything after a 1-hour wait.

@@ -192,6 +192,32 @@ public class FiltreDnsTests
             Assert.True(sousCleRetiree || (script.Contains($"'HKLM:\\{r.Cle}'") && script.Contains($"'{r.Nom}'")),
                 $"remise-a-zero.ps1 ne retire pas {r.Cle}\\{r.Nom}");
         }
+        foreach (var chemin in Navigateurs.ListesForcees)
+            Assert.Contains($"'HKLM:\\{chemin}'", script);
+        var ids = System.Text.RegularExpressions.Regex.Match(script, @"\$IdsExtension\s*=\s*@\((.*?)\)").Groups[1].Value;
+        Assert.Contains($"'{Navigateurs.IdExtension}'", ids);
+    }
+
+    [Fact]
+    public void ListeForceeGardeLesAutresEtNeLaissePasDeTrou()
+    {
+        var autre = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;https://exemple.invalid/crx";
+        var rempart = Navigateurs.EntreeExtension;
+
+        // Vide : Rempart en 1. Déjà bien inscrit : rien à faire.
+        Assert.Equal([rempart], Navigateurs.ListeForceeVoulue([], avecRempart: true));
+        Assert.Null(Navigateurs.ListeForceeVoulue([(1, autre), (2, rempart)], avecRempart: true));
+        // Un autre logiciel occupe le 1 : Rempart se range après lui.
+        Assert.Equal([autre, rempart], Navigateurs.ListeForceeVoulue([(1, autre)], avecRempart: true));
+        // Adresse de mise à jour sabotée ou doublon : remis proprement.
+        Assert.Equal([autre, rempart], Navigateurs.ListeForceeVoulue(
+            [(1, Navigateurs.IdExtension + ";https://faux.invalid"), (2, autre)], avecRempart: true));
+        Assert.Equal([rempart], Navigateurs.ListeForceeVoulue([(1, rempart), (2, rempart)], avecRempart: true));
+        // Trou dans la numérotation : renuméroté.
+        Assert.Equal([autre, rempart], Navigateurs.ListeForceeVoulue([(1, autre), (3, rempart)], avecRempart: true));
+        // Retrait : seule l'entrée de Rempart part, sans laisser de trou.
+        Assert.Equal([autre], Navigateurs.ListeForceeVoulue([(1, rempart), (2, autre)], avecRempart: false));
+        Assert.Null(Navigateurs.ListeForceeVoulue([(1, autre)], avecRempart: false));
     }
 
     // ---- Serveur complet --------------------------------------------------------------------------------------

@@ -22,8 +22,8 @@ $Processus      = @('Rempart', 'RempartService', 'Rempart.Service')
 $DossierProgramme = Join-Path $env:ProgramFiles 'Rempart'
 $DossierDonnees   = Join-Path $env:ProgramData 'Rempart'
 $GroupePareFeu  = 'Rempart'
-# Identifiants de l'extension installee de force (a remplir quand elle sera publiee).
-$IdsExtension   = @()
+# Identifiants de l'extension installee de force (Chrome Web Store, aussi utilise par Edge).
+$IdsExtension   = @('blbhgncncmhfaeekaffddenkfdmkecee')
 
 $ReglagesNavigateurs = @{
     'HKLM:\SOFTWARE\Policies\Google\Chrome' = @(
@@ -155,6 +155,15 @@ foreach ($cle in $ListesExtensions) {
         foreach ($id in $IdsExtension) {
             if ($valeur.StartsWith($id)) { Remove-ItemProperty -Path $cle -Name $nom -Force; Ok "extension retiree de $cle" }
         }
+    }
+    # Chrome lit 1, 2, 3... et s'arrete au premier trou : renumeroter les entrees d'autres logiciels.
+    $item = Get-Item $cle
+    $restantes = @($item.GetValueNames() | Where-Object { $_ -match '^[1-9][0-9]*$' } | Sort-Object { [int]$_ } |
+        ForEach-Object { [string]$item.GetValue($_) })
+    $item.GetValueNames() | Where-Object { $_ -match '^[1-9][0-9]*$' } |
+        ForEach-Object { Remove-ItemProperty -Path $cle -Name $_ -Force }
+    for ($i = 0; $i -lt $restantes.Count; $i++) {
+        New-ItemProperty -Path $cle -Name ([string]($i + 1)) -Value $restantes[$i] -PropertyType String -Force | Out-Null
     }
 }
 foreach ($cle in @($ReglagesNavigateurs.Keys) + $ListesExtensions) { Supprimer-CleSiVide $cle }

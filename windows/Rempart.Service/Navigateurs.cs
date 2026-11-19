@@ -44,6 +44,47 @@ internal sealed class Navigateurs(ILogger log)
         new(DnsWindows, "DoHPolicy", 1),
     ];
 
+    /// <summary>
+    /// Extension Rempart (Chrome Web Store), installée de force dans Chrome et Edge : impossible à désactiver ou à
+    /// supprimer depuis le navigateur. Doit figurer dans $IdsExtension de remise-a-zero.ps1 (un test le vérifie).
+    /// </summary>
+    public const string IdExtension = "blbhgncncmhfaeekaffddenkfdmkecee";
+    public const string EntreeExtension = IdExtension + ";https://clients2.google.com/service/update2/crx";
+    public static readonly string[] ListesForcees = [Chrome + @"\ExtensionInstallForcelist", Edge + @"\ExtensionInstallForcelist"];
+
+    /// <summary>
+    /// Contenu voulu d'une liste d'installation forcée (valeurs nommées 1, 2, 3… sans trou, sinon Chrome s'arrête
+    /// au trou). Les entrées d'autres logiciels sont gardées dans leur ordre. Renvoie null si rien à changer.
+    /// </summary>
+    public static IReadOnlyList<string>? ListeForceeVoulue(IReadOnlyList<(int Numero, string Valeur)> actuelles, bool avecRempart)
+    {
+        var autres = actuelles.OrderBy(a => a.Numero).Select(a => a.Valeur)
+            .Where(v => !v.StartsWith(IdExtension, StringComparison.OrdinalIgnoreCase)).ToList();
+        List<string> voulue = avecRempart ? [.. autres, EntreeExtension] : autres;
+        bool sansTrou = actuelles.Select(a => a.Numero).Order().SequenceEqual(Enumerable.Range(1, actuelles.Count));
+        bool rempartBienInscrit = actuelles.Count(a => a.Valeur == EntreeExtension) == 1
+            && actuelles.Count(a => a.Valeur.StartsWith(IdExtension, StringComparison.OrdinalIgnoreCase)) == 1;
+        bool dejaBon = sansTrou && (avecRempart ? rempartBienInscrit : actuelles.Count == autres.Count);
+        return dejaBon ? null : voulue;
+    }
+
+    /// <summary>Met une liste d'installation forcée dans l'état voulu. Renvoie true si elle a été réécrite.</summary>
+    private static bool AjusterListeForcee(string chemin, bool avecRempart)
+    {
+        using var cle = avecRempart ? Registry.LocalMachine.CreateSubKey(chemin, writable: true)
+                                    : Registry.LocalMachine.OpenSubKey(chemin, writable: true);
+        if (cle is null) return false;
+        var numerotees = cle.GetValueNames()
+            .Select(n => (Nom: n, Numero: int.TryParse(n, out var i) && i > 0 && n == i.ToString() ? i : 0))
+            .Where(x => x.Numero > 0).ToList();
+        var actuelles = numerotees.Select(x => (x.Numero, cle.GetValue(x.Nom)?.ToString() ?? "")).ToList();
+        var voulue = ListeForceeVoulue(actuelles, avecRempart);
+        if (voulue is null) return false;
+        foreach (var x in numerotees) cle.DeleteValue(x.Nom, throwOnMissingValue: false);
+        for (int i = 0; i < voulue.Count; i++) cle.SetValue((i + 1).ToString(), voulue[i], RegistryValueKind.String);
+        return true;
+    }
+
     /// <summary>Pose les réglages manquants ou modifiés. Renvoie le nombre de réglages remis en place.</summary>
     public int Appliquer()
     {
@@ -57,6 +98,12 @@ internal sealed class Navigateurs(ILogger log)
             remis++;
             if (actuelle is not null) log.LogWarning("Réglage modifié, remis en place : {Cle}\\{Nom}", r.Cle, r.Nom);
         }
+        foreach (var chemin in ListesForcees)
+        {
+            if (!AjusterListeForcee(chemin, avecRempart: true)) continue;
+            remis++;
+            log.LogInformation("Extension Rempart inscrite à l'installation forcée : {Cle}", chemin);
+        }
         return remis;
     }
 
@@ -68,6 +115,11 @@ internal sealed class Navigateurs(ILogger log)
             using (var cle = Registry.LocalMachine.OpenSubKey(r.Cle, writable: true))
                 cle?.DeleteValue(r.Nom, throwOnMissingValue: false);
             SupprimerSiVide(r.Cle);
+        }
+        foreach (var chemin in ListesForcees)
+        {
+            AjusterListeForcee(chemin, avecRempart: false);
+            SupprimerSiVide(chemin);
         }
         log.LogInformation("Réglages des navigateurs retirés.");
     }
