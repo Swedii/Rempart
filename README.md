@@ -118,6 +118,21 @@ Windows, et `windows\REMISE-A-ZERO.cmd` remet tout comme avant (immédiat en mod
 - [oisd nsfw](https://oisd.nl) — GPL-3.0
 - [Public Suffix List](https://publicsuffix.org) — MPL-2.0 (utilisée pour ne jamais bloquer un suffixe public)
 
+## Politique de signature du code
+
+*Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).*
+(Signature de code gratuite fournie par SignPath.io, certificat de la SignPath Foundation : demande en cours.)
+
+- L'installateur Windows est construit uniquement à partir du code de ce dépôt, sur les serveurs de GitHub
+  ([.github/workflows/installateur.yml](.github/workflows/installateur.yml)), puis signé par SignPath.
+- Auteurs et relecteurs (*committers and reviewers*) : [Swedii](https://github.com/Swedii).
+  Approbation de chaque signature (*approvers*) : [Swedii](https://github.com/Swedii).
+- Validation en deux étapes obligatoire sur GitHub et sur SignPath pour toute personne de l'équipe.
+- Vie privée : ce programme ne transmet aucune information à d'autres systèmes en réseau, sauf à la demande
+  explicite de l'utilisateur (signalement d'un faux positif) ; le filtre DNS transmet seulement les requêtes
+  autorisées au serveur DNS d'origine du PC, comme Windows le ferait sans lui, et Chrome et Edge téléchargent
+  l'extension Rempart depuis le Chrome Web Store. Voir la [politique de confidentialité](PRIVACY.md).
+
 ## Licence
 
 GPL-3.0-or-later — voir [LICENSE](LICENSE).
@@ -144,3 +159,12 @@ starts with Windows. Uninstalling requires a code requested in the app: it appea
 **False positives are the top priority**: when in doubt, the site stays accessible. Rempart blocks pornography only
 (plus sex shops and gore), not dating, gambling, mainstream manga or torrents. Report a wrongly blocked site with the
 “False positive” issue form. Android app and iPhone guide are on the roadmap. Licensed GPL-3.0-or-later.
+
+**Code signing policy**: free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
+[SignPath Foundation](https://signpath.org) (application pending). The Windows installer is built only from this
+repository's source on GitHub-hosted runners ([workflow](.github/workflows/installateur.yml)) and then signed by SignPath.
+Committers, reviewers and approvers: [Swedii](https://github.com/Swedii); two-factor authentication is required for
+GitHub and SignPath. Privacy: this program will not transfer any information to other networked systems unless
+specifically requested by the user (false-positive report); the DNS filter only forwards allowed queries to the PC's
+original DNS server, as Windows would without it, and Chrome and Edge download the Rempart extension from the Chrome
+Web Store. See the [privacy policy](PRIVACY.md).

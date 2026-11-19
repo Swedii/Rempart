@@ -1,0 +1,72 @@
+# Construit l'installateur Windows à partir du code public, puis le fait signer par SignPath Foundation.
+# Lancé à la main (onglet Actions > « Installateur Windows » > Run workflow) : rien ne part tout seul.
+# La signature ne se fait que si le secret SIGNPATH_API_TOKEN existe (après l'acceptation par SignPath Foundation) ;
+# chaque demande de signature doit en plus être approuvée à la main dans SignPath.
+name: Installateur Windows
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  construire:
+    runs-on: windows-latest
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: "true"
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Liste de sites (OISD NSFW)
+        run: |
+          npm ci
+          npm run build:blocklist
+
+      - name: Tests du service
+        run: dotnet test windows/Rempart.slnx
+
+      - name: Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Construction de l'installateur
+        shell: pwsh
+        run: ./windows/installateur/construire.ps1 -Variante protection
+
+      - name: Installateur non signé
+        id: non-signe
+        uses: actions/upload-artifact@v4
+        with:
+          name: installateur-non-signe
+          path: windows/sortie/Rempart-*-installation.exe
+          if-no-files-found: error
+
+      - name: Signature (SignPath Foundation)
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: Rempart
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.non-signe.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signe
+
+      - name: Installateur signé
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: installateur-signe
+          path: signe/
+          if-no-files-found: error
