@@ -1,0 +1,42 @@
+# Publie le site du projet (dossier site/) sur GitHub Pages : https://swedii.github.io/Rempart/
+# Se lance à chaque envoi qui touche le site ou les captures, ou à la main (onglet Actions).
+# Prérequis (une fois) : Settings > Pages > Source = « GitHub Actions ».
+name: Site
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "store/captures/**", "extension/icons/128.png", ".github/workflows/site.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemblage
+        run: |
+          mkdir -p _site/captures
+          cp -r site/. _site/
+          cp extension/icons/128.png _site/icon.png
+          cp -r store/captures/fr store/captures/en _site/captures/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deploiement
+        uses: actions/deploy-pages@v4
